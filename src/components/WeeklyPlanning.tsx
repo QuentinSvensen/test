@@ -429,7 +429,9 @@ export function WeeklyPlanning() {
           return total + slotMeals.reduce((s, pm) => {
             const override = calOverrides[pm.id];
             if (override) return s + parseCalories(override);
-            const ingCal = computeIngredientCalories(pm.meals?.ingredients);
+            // Use ingredients_override from possible_meals if present, otherwise fall back to original meal ingredients
+            const effectiveIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
+            const ingCal = computeIngredientCalories(effectiveIngredients);
             if (ingCal !== null) return s + ingCal;
             return s + parseCalories(pm.meals?.calories);
           }, 0);
@@ -613,7 +615,8 @@ export function WeeklyPlanning() {
     const counterDays = getAdaptedCounterDays(pm.counter_start_date, pm.day_of_week);
     const counterUrgent = counterDays !== null && counterDays >= 3;
     const overrideCal = calOverrides[pm.id];
-    const ingCal = computeIngredientCalories(meal.ingredients);
+    const effectiveIngredients = pm.ingredients_override ?? meal.ingredients;
+    const ingCal = computeIngredientCalories(effectiveIngredients);
     const isComputedCal = !overrideCal && ingCal !== null;
     const displayCal = overrideCal || (ingCal !== null ? String(ingCal) : meal.calories);
 

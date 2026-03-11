@@ -74,7 +74,7 @@ const verifyAuth = async (authHeader: string | null) => {
 };
 
 const getMetaValue = async (
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   key: string,
 ): Promise<string | null> => {
   const { data, error } = await supabaseAdmin
@@ -88,7 +88,7 @@ const getMetaValue = async (
 };
 
 const setMetaValue = async (
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   key: string,
   value: string,
 ) => {
@@ -115,7 +115,7 @@ const setMetaValue = async (
   if (insertError) throw insertError;
 };
 
-const incrementBlockedCount = async (supabaseAdmin: ReturnType<typeof createClient>) => {
+const incrementBlockedCount = async (supabaseAdmin: any) => {
   const currentRaw = await getMetaValue(supabaseAdmin, BLOCKED_COUNT_KEY);
   const current = Number.parseInt(currentRaw ?? "0", 10);
   const next = (Number.isFinite(current) ? current : 0) + 1;
