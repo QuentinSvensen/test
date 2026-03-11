@@ -429,7 +429,9 @@ export function WeeklyPlanning() {
           return total + slotMeals.reduce((s, pm) => {
             const override = calOverrides[pm.id];
             if (override) return s + parseCalories(override);
-            const ingCal = computeIngredientCalories(pm.meals?.ingredients);
+            // Use ingredients_override from possible_meals if present, otherwise fall back to original meal ingredients
+            const effectiveIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
+            const ingCal = computeIngredientCalories(effectiveIngredients);
             if (ingCal !== null) return s + ingCal;
             return s + parseCalories(pm.meals?.calories);
           }, 0);
