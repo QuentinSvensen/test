@@ -33,6 +33,7 @@ function makeFoodItem(overrides: Partial<FoodItem> & { name: string }): FoodItem
     expiration_date: null,
     counter_start_date: null,
     food_type: null,
+    no_counter: false,
     ...overrides,
   };
 }
