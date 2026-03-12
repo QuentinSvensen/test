@@ -398,6 +398,9 @@ export function WeeklyPlanning() {
   const drinkChecks = getPreference<Record<string, boolean>>('planning_drink_checks', {});
   const manualCalories = getPreference<Record<string, number>>('planning_manual_calories', {});
   const extraCalories = getPreference<Record<string, number>>('planning_extra_calories', {});
+  const manualProteins = getPreference<Record<string, number>>('planning_manual_proteins', {});
+  const breakfastManualProteins = getPreference<Record<string, number>>('planning_breakfast_manual_proteins', {});
+  const extraProteins = getPreference<Record<string, number>>('planning_extra_proteins', {});
 
   const keepOnReset = getPreference<Record<string, boolean>>('planning_keep_on_reset', {});
   const WEEKLY_GOAL = DAILY_GOAL * DEFAULT_WEEKLY_MULTIPLIER;
@@ -411,15 +414,19 @@ export function WeeklyPlanning() {
   const getDayProtein = (day: string): number => {
     const mealProt = TIMES.reduce((total, time) => {
       const slotMeals = getMealsForSlot(day, time);
-      return total + slotMeals.reduce((s, pm) => {
-        const displayIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
-        const ingPro = computeIngredientProtein(displayIngredients);
-        return s + (ingPro !== null ? ingPro : parseProtein(pm.meals?.protein));
-      }, 0);
+      if (slotMeals.length > 0) {
+        return total + slotMeals.reduce((s, pm) => {
+          const displayIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
+          const ingPro = computeIngredientProtein(displayIngredients);
+          return s + (ingPro !== null ? ingPro : parseProtein(pm.meals?.protein));
+        }, 0);
+      }
+      return total + (manualProteins[`${day}-${time}`] || 0);
     }, 0);
     const breakfast = getBreakfastForDay(day);
-    const breakfastProt = breakfast ? parseProtein(breakfast.protein) : 0;
-    return mealProt + breakfastProt;
+    const breakfastProt = breakfast ? parseProtein(breakfast.protein) : (breakfastManualProteins[day] || 0);
+    const extraProt = extraProteins[day] || 0;
+    return mealProt + breakfastProt + extraProt;
   };
 
   const handleDrop = async (e: React.DragEvent, day: string, time: string) => {
@@ -698,34 +705,55 @@ export function WeeklyPlanning() {
                 </Popover>
                 {/* Manual calorie input when no breakfast selected */}
                 {!getBreakfastForDay(day) && (
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="kcal"
-                    key={`breakfast-cal-${day}`}
-                    defaultValue={breakfastManualCalories[day] || ''}
-                    onBlur={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      const updated = { ...breakfastManualCalories };
-                      if (val > 0) updated[day] = val;
-                      else delete updated[day];
-                      setPreference.mutate({ key: 'planning_breakfast_manual_calories', value: updated });
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                    className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-orange-300/30 rounded px-1 text-orange-500 placeholder:text-orange-300/20 focus:outline-none focus:border-orange-400/40"
-                  />
+                  <>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="kcal"
+                      key={`breakfast-cal-${day}`}
+                      defaultValue={breakfastManualCalories[day] || ''}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const updated = { ...breakfastManualCalories };
+                        if (val > 0) updated[day] = val;
+                        else delete updated[day];
+                        setPreference.mutate({ key: 'planning_breakfast_manual_calories', value: updated });
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-orange-300/30 rounded px-1 text-orange-500 placeholder:text-orange-300/20 focus:outline-none focus:border-orange-400/40"
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="prot"
+                      key={`breakfast-prot-${day}`}
+                      defaultValue={breakfastManualProteins[day] || ''}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        const updated = { ...breakfastManualProteins };
+                        if (val > 0) updated[day] = val;
+                        else delete updated[day];
+                        setPreference.mutate({ key: 'planning_breakfast_manual_proteins', value: updated });
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40"
+                    />
+                  </>
                 )}
-                <Checkbox
-                  checked={!!keepOnReset[`breakfast-${day}`]}
-                  onCheckedChange={(checked) => {
+                <button
+                  onClick={() => {
                     const updated = { ...keepOnReset };
-                    if (checked) updated[`breakfast-${day}`] = true;
-                    else delete updated[`breakfast-${day}`];
+                    if (updated[`breakfast-${day}`]) delete updated[`breakfast-${day}`];
+                    else updated[`breakfast-${day}`] = true;
                     setPreference.mutate({ key: 'planning_keep_on_reset', value: updated });
                   }}
-                  className="h-3 w-3 shrink-0"
-                  title="Conserver lors du reset"
-                />
+                  className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
+                    keepOnReset[`breakfast-${day}`]
+                      ? 'bg-primary/20 text-primary border border-primary/40'
+                      : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                  }`}
+                  title="Sauvegarder les valeurs"
+                >💾</button>
               </div>
               <div className="flex-1" />
               <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap justify-end">
@@ -849,19 +877,40 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_calories', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-16 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
                           />
-                          <Checkbox
-                            checked={!!keepOnReset[`manual-${day}-${time}`]}
-                            onCheckedChange={(checked) => {
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="prot"
+                            key={`manual-prot-${day}-${time}`}
+                            defaultValue={manualProteins[`${day}-${time}`] || ''}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              const key = `${day}-${time}`;
+                              const updated = { ...manualProteins };
+                              if (val > 0) updated[key] = val;
+                              else delete updated[key];
+                              setPreference.mutate({ key: 'planning_manual_proteins', value: updated });
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40"
+                          />
+                          <button
+                            onClick={() => {
+                              const calKey = `manual-${day}-${time}`;
                               const updated = { ...keepOnReset };
-                              if (checked) updated[`manual-${day}-${time}`] = true;
-                              else delete updated[`manual-${day}-${time}`];
+                              if (updated[calKey]) delete updated[calKey];
+                              else updated[calKey] = true;
                               setPreference.mutate({ key: 'planning_keep_on_reset', value: updated });
                             }}
-                            className="h-3 w-3 shrink-0"
-                            title="Conserver lors du reset"
-                          />
+                            className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
+                              keepOnReset[`manual-${day}-${time}`]
+                                ? 'bg-primary/20 text-primary border border-primary/40'
+                                : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                            }`}
+                            title="Sauvegarder les valeurs"
+                          >💾</button>
                         </div>
                       ) : (
                         slotMeals.map((pm) => renderMiniCard(pm, false))
@@ -871,9 +920,9 @@ export function WeeklyPlanning() {
                 );
               })}
               {/* Extra column */}
-              <div className="min-h-[44px] sm:min-h-[52px] rounded-xl border border-dashed border-orange-300/30 p-1 sm:p-1.5 w-12 sm:w-20 flex flex-col items-center">
+              <div className="min-h-[44px] sm:min-h-[52px] rounded-xl border border-dashed border-orange-300/30 p-1 sm:p-1.5 w-14 sm:w-24 flex flex-col items-center">
                 <span className="text-[7px] sm:text-[8px] font-semibold text-orange-400/60 uppercase tracking-wide">Extra</span>
-                <div className="flex flex-col sm:flex-row items-center gap-0.5 mt-1">
+                <div className="flex flex-col items-center gap-0.5 mt-1 w-full">
                   <input
                     type="number"
                     inputMode="numeric"
@@ -890,17 +939,36 @@ export function WeeklyPlanning() {
                     onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                     className="w-full h-5 text-[11px] bg-transparent border border-dashed border-orange-300/20 rounded px-1 text-orange-400 placeholder:text-orange-300/20 focus:outline-none focus:border-orange-400/40 text-center"
                   />
-                  <Checkbox
-                    checked={!!keepOnReset[`extra-${day}`]}
-                    onCheckedChange={(checked) => {
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="prot"
+                    key={`extra-prot-${day}`}
+                    defaultValue={extraProteins[day] || ''}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      const updated = { ...extraProteins };
+                      if (val > 0) updated[day] = val;
+                      else delete updated[day];
+                      setPreference.mutate({ key: 'planning_extra_proteins', value: updated });
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    className="w-full h-5 text-[11px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40 text-center"
+                  />
+                  <button
+                    onClick={() => {
                       const updated = { ...keepOnReset };
-                      if (checked) updated[`extra-${day}`] = true;
-                      else delete updated[`extra-${day}`];
+                      if (updated[`extra-${day}`]) delete updated[`extra-${day}`];
+                      else updated[`extra-${day}`] = true;
                       setPreference.mutate({ key: 'planning_keep_on_reset', value: updated });
                     }}
-                    className="h-3 w-3 shrink-0"
-                    title="Conserver lors du reset"
-                  />
+                    className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
+                      keepOnReset[`extra-${day}`]
+                        ? 'bg-primary/20 text-primary border border-primary/40'
+                        : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                    }`}
+                    title="Sauvegarder les valeurs"
+                  >💾</button>
                 </div>
               </div>
             </div>
@@ -909,18 +977,26 @@ export function WeeklyPlanning() {
       })}
 
       {/* Total calorique de la semaine */}
-      <div className="rounded-2xl bg-card/80 backdrop-blur-sm px-4 py-3 flex items-center justify-between flex-wrap gap-1">
-        <span className="text-sm font-bold text-foreground">Total semaine</span>
-        <div className="flex items-center gap-3 flex-wrap ml-auto">
-          <span className="text-xs text-muted-foreground font-medium">
-            Moy. {Math.round(weekTotal / 7)} kcal/j
-          </span>
-          <span className="flex items-center gap-1.5 text-sm font-black text-orange-500">
-            <Flame className="h-4 w-4" />
-            {Math.round(weekTotal)} <span className="text-muted-foreground/50 font-normal text-xs">/ {WEEKLY_GOAL}</span>
-          </span>
-        </div>
-      </div>
+      {(() => {
+        const todayIndex = DAY_KEY_TO_INDEX[todayKey];
+        const daysUpToToday = DAYS.slice(0, todayIndex + 1);
+        const totalUpToToday = daysUpToToday.reduce((sum, d) => sum + getDayCalories(d), 0);
+        const avgCal = daysUpToToday.length > 0 ? Math.round(totalUpToToday / daysUpToToday.length) : 0;
+        return (
+          <div className="rounded-2xl bg-card/80 backdrop-blur-sm px-4 py-3 flex items-center justify-between flex-wrap gap-1">
+            <span className="text-sm font-bold text-foreground">Total semaine</span>
+            <div className="flex items-center gap-3 flex-wrap ml-auto">
+              <span className="text-xs text-muted-foreground font-medium">
+                Moy. {avgCal} kcal/j <span className="text-muted-foreground/40">({daysUpToToday.length}j)</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-black text-orange-500">
+                <Flame className="h-4 w-4" />
+                {Math.round(weekTotal)} <span className="text-muted-foreground/50 font-normal text-xs">/ {WEEKLY_GOAL}</span>
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Hors planning — drop zone to unplan */}
       <div

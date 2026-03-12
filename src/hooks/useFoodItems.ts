@@ -20,6 +20,7 @@ export interface FoodItem {
   is_infinite: boolean;
   is_dry: boolean;
   is_indivisible: boolean;
+  no_counter: boolean;
   storage_type: StorageType;
   quantity: number | null;
   food_type: FoodType;
@@ -59,6 +60,7 @@ export function useFoodItems(options?: { enabled?: boolean }) {
         is_infinite: d.is_infinite ?? false,
         is_dry: d.is_dry ?? false,
         is_indivisible: d.is_indivisible ?? false,
+        no_counter: d.no_counter ?? false,
         storage_type: d.storage_type ?? (d.is_dry ? "sec" : "frigo"),
         quantity: d.quantity ?? null,
         food_type: d.food_type ?? null,
