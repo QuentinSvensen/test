@@ -904,18 +904,22 @@ export function WeeklyPlanning() {
                           />
                           <button
                             onClick={() => {
-                              const calKey = `manual-${day}-${time}`;
-                              const updated = { ...keepOnReset };
-                              if (updated[calKey]) delete updated[calKey];
-                              else updated[calKey] = true;
-                              setPreference.mutate({ key: 'planning_keep_on_reset', value: updated });
+                              const snapKey = `manual-${day}-${time}`;
+                              const cal = manualCalories[`${day}-${time}`] || 0;
+                              const prot = manualProteins[`${day}-${time}`] || 0;
+                              const updated = { ...savedSnapshots, [snapKey]: { cal, prot } };
+                              setPreference.mutate({ key: 'planning_saved_snapshots', value: updated });
+                              setFlashedKeys(prev => ({ ...prev, [snapKey]: true }));
+                              setTimeout(() => setFlashedKeys(prev => ({ ...prev, [snapKey]: false })), 1200);
                             }}
                             className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
-                              keepOnReset[`manual-${day}-${time}`]
-                                ? 'bg-primary/20 text-primary border border-primary/40'
-                                : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                              flashedKeys[`manual-${day}-${time}`]
+                                ? 'bg-green-500/30 text-green-400 border border-green-400/50'
+                                : savedSnapshots[`manual-${day}-${time}`]
+                                  ? 'bg-primary/20 text-primary border border-primary/40'
+                                  : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
                             }`}
-                            title="Sauvegarder les valeurs"
+                            title={savedSnapshots[`manual-${day}-${time}`] ? `Sauvegardé: ${savedSnapshots[`manual-${day}-${time}`].cal || 0} kcal / ${savedSnapshots[`manual-${day}-${time}`].prot || 0} prot` : 'Sauvegarder les valeurs pour le reset'}
                           >💾</button>
                         </div>
                       ) : (
