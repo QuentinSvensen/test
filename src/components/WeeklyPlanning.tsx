@@ -398,6 +398,9 @@ export function WeeklyPlanning() {
   const drinkChecks = getPreference<Record<string, boolean>>('planning_drink_checks', {});
   const manualCalories = getPreference<Record<string, number>>('planning_manual_calories', {});
   const extraCalories = getPreference<Record<string, number>>('planning_extra_calories', {});
+  const manualProteins = getPreference<Record<string, number>>('planning_manual_proteins', {});
+  const breakfastManualProteins = getPreference<Record<string, number>>('planning_breakfast_manual_proteins', {});
+  const extraProteins = getPreference<Record<string, number>>('planning_extra_proteins', {});
 
   const keepOnReset = getPreference<Record<string, boolean>>('planning_keep_on_reset', {});
   const WEEKLY_GOAL = DAILY_GOAL * DEFAULT_WEEKLY_MULTIPLIER;
