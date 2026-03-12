@@ -877,19 +877,40 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_calories', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-16 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
                           />
-                          <Checkbox
-                            checked={!!keepOnReset[`manual-${day}-${time}`]}
-                            onCheckedChange={(checked) => {
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="prot"
+                            key={`manual-prot-${day}-${time}`}
+                            defaultValue={manualProteins[`${day}-${time}`] || ''}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              const key = `${day}-${time}`;
+                              const updated = { ...manualProteins };
+                              if (val > 0) updated[key] = val;
+                              else delete updated[key];
+                              setPreference.mutate({ key: 'planning_manual_proteins', value: updated });
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40"
+                          />
+                          <button
+                            onClick={() => {
+                              const calKey = `manual-${day}-${time}`;
                               const updated = { ...keepOnReset };
-                              if (checked) updated[`manual-${day}-${time}`] = true;
-                              else delete updated[`manual-${day}-${time}`];
+                              if (updated[calKey]) delete updated[calKey];
+                              else updated[calKey] = true;
                               setPreference.mutate({ key: 'planning_keep_on_reset', value: updated });
                             }}
-                            className="h-3 w-3 shrink-0"
-                            title="Conserver lors du reset"
-                          />
+                            className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
+                              keepOnReset[`manual-${day}-${time}`]
+                                ? 'bg-primary/20 text-primary border border-primary/40'
+                                : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                            }`}
+                            title="Sauvegarder les valeurs"
+                          >💾</button>
                         </div>
                       ) : (
                         slotMeals.map((pm) => renderMiniCard(pm, false))
