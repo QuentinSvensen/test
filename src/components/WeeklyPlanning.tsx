@@ -767,8 +767,19 @@ export function WeeklyPlanning() {
                           {m.name} {m.calories ? `(${m.calories})` : ''}
                         </button>
                       ))}
-                      {petitDejMeals.length === 0 && (
-                        <p className="text-[10px] text-muted-foreground italic px-2 py-1">Aucun petit déj dans "Tous"</p>
+                      {possiblePetitDej.length > 0 && (
+                        <>
+                          <div className="border-t border-border/40 my-1" />
+                          <p className="text-[9px] text-muted-foreground/60 px-2 font-semibold uppercase tracking-wide">Possible</p>
+                          {possiblePetitDej.map(pm => (
+                            <button key={pm.id} onClick={() => setBreakfastForDay(day, pm.meal_id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${breakfastSelections[day] === pm.meal_id ? 'bg-primary/10 font-bold' : ''}`}>
+                              {pm.meals?.name} {pm.meals?.calories ? `(${pm.meals.calories})` : ''}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      {petitDejMeals.length === 0 && possiblePetitDej.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic px-2 py-1">Aucun petit déj</p>
                       )}
                     </div>
                   </PopoverContent>
