@@ -661,8 +661,73 @@ export function WeeklyPlanning() {
 
   const weekTotal = DAYS.reduce((sum, day) => sum + getDayCalories(day), 0);
 
+  const handleManualReset = async () => {
+    if (!confirm('Réinitialiser le planning ? Les cartes seront supprimées et les valeurs sauvegardées (💾) seront restaurées.')) return;
+    const snaps = savedSnapshots;
+    await Promise.all(possibleMeals.map(pm =>
+      (supabase as any).from("possible_meals").delete().eq("id", pm.id)
+    ));
+    const rMC: Record<string, number> = {}, rMP: Record<string, number> = {};
+    const rEC: Record<string, number> = {}, rEP: Record<string, number> = {};
+    const rBC: Record<string, number> = {}, rBP: Record<string, number> = {};
+    const keptBreakfast: Record<string, string> = {};
+    for (const [key, snap] of Object.entries(snaps)) {
+      const s = snap as any;
+      if (key.startsWith('manual-')) { const k = key.replace('manual-', ''); if (s.cal) rMC[k] = s.cal; if (s.prot) rMP[k] = s.prot; }
+      else if (key.startsWith('extra-')) { const k = key.replace('extra-', ''); if (s.cal) rEC[k] = s.cal; if (s.prot) rEP[k] = s.prot; }
+      else if (key.startsWith('breakfast-')) { const k = key.replace('breakfast-', ''); if (s.cal) rBC[k] = s.cal; if (s.prot) rBP[k] = s.prot; if (s.mealId) keptBreakfast[k] = s.mealId; }
+    }
+    setPreference.mutate({ key: 'planning_manual_calories', value: rMC });
+    setPreference.mutate({ key: 'planning_manual_proteins', value: rMP });
+    setPreference.mutate({ key: 'planning_extra_calories', value: rEC });
+    setPreference.mutate({ key: 'planning_extra_proteins', value: rEP });
+    setPreference.mutate({ key: 'planning_breakfast_manual_calories', value: rBC });
+    setPreference.mutate({ key: 'planning_breakfast_manual_proteins', value: rBP });
+    setPreference.mutate({ key: 'planning_breakfast', value: keptBreakfast });
+    setPreference.mutate({ key: 'planning_drink_checks', value: {} });
+    setPreference.mutate({ key: 'last_weekly_reset', value: new Date().toISOString() });
+    qc.invalidateQueries({ queryKey: ["possible_meals"] });
+  };
+
   return (
     <div className={`max-w-4xl mx-auto space-y-3 overflow-x-hidden ${touchDragActive ? "touch-none" : ""}`}>
+      {/* Global planning header */}
+      <div className="rounded-2xl bg-card/80 backdrop-blur-sm p-3 flex items-center gap-3 flex-wrap">
+        <button onClick={handleManualReset} className="text-xs font-semibold bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg px-3 py-1.5 transition-colors">🔄 Reset</button>
+        <div className="flex items-center gap-1">
+          <Flame className="h-3 w-3 text-orange-500" />
+          <input
+            type="number"
+            inputMode="numeric"
+            defaultValue={DAILY_GOAL}
+            key={`global-cal-${DAILY_GOAL}`}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value);
+              if (val && val > 0) setPreference.mutate({ key: 'planning_daily_goal', value: val });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-16 h-6 text-xs bg-transparent border border-dashed border-orange-300/30 rounded px-1 text-orange-500 focus:outline-none focus:border-orange-400/50 text-center"
+          />
+          <span className="text-[9px] text-muted-foreground">kcal/j</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs">🍗</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            defaultValue={DAILY_PROTEIN_GOAL_PREF}
+            key={`global-prot-${DAILY_PROTEIN_GOAL_PREF}`}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value);
+              if (val && val > 0) setPreference.mutate({ key: 'planning_protein_goal', value: val });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-14 h-6 text-xs bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 focus:outline-none focus:border-blue-400/50 text-center"
+          />
+          <span className="text-[9px] text-muted-foreground">prot/j</span>
+        </div>
+      </div>
+
       {DAYS.map((day) => {
         const isToday_ = day === todayKey;
         const dayCalories = getDayCalories(day);
