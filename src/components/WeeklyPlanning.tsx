@@ -954,7 +954,7 @@ export function WeeklyPlanning() {
                     </div>
                     <div className="mt-0.5 space-y-1">
                       {slotMeals.length === 0 ? (
-                        <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col items-center gap-0.5">
                           <input
                             type="number"
                             inputMode="numeric"
@@ -970,7 +970,7 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_calories', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40 text-center"
                           />
                           <input
                             type="number"
@@ -987,7 +987,7 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_proteins', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40 text-center"
                           />
                           <button
                             onClick={() => {
@@ -999,7 +999,7 @@ export function WeeklyPlanning() {
                               setFlashedKeys(prev => ({ ...prev, [snapKey]: true }));
                               setTimeout(() => setFlashedKeys(prev => ({ ...prev, [snapKey]: false })), 1200);
                             }}
-                            className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center self-center ${
+                            className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center ${
                               flashedKeys[`manual-${day}-${time}`]
                                 ? 'bg-green-500/30 text-green-400 border border-green-400/50'
                                 : savedSnapshots[`manual-${day}-${time}`]
