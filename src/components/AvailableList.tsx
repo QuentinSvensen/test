@@ -815,8 +815,8 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
             onCheckedChange={(checked) => {
               setAvailPref.mutate({ key: `available_use_remaining_calories_${category.value}`, value: !!checked });
               if (!checked) {
-                // Clear the cached customized ratios when disabling the filter
                 setCustomRatios({});
+                setTempCalorieOverride(null);
               }
             }}
           />
@@ -825,9 +825,35 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
               Carte en fonction des calories restantes
             </label>
             {useRemainingCalories && (
-              <span className="text-[10px] text-muted-foreground mt-0.5">
-                Seuil max : {Math.round(calorieThreshold)} kcal
-              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-muted-foreground">
+                  Seuil max :
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  defaultValue={Math.round(tempCalorieOverride ?? baseCalorieThreshold)}
+                  key={`temp-cal-${tempCalorieOverride ?? 'base'}-${Math.round(baseCalorieThreshold)}`}
+                  onBlur={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val && val > 0 && val !== Math.round(baseCalorieThreshold)) {
+                      setTempCalorieOverride(val);
+                    } else {
+                      setTempCalorieOverride(null);
+                    }
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className="w-16 h-5 text-[10px] bg-transparent border border-dashed border-orange-300/30 rounded px-1 text-orange-500 focus:outline-none focus:border-orange-400/50 text-center"
+                />
+                <span className="text-[10px] text-muted-foreground">kcal</span>
+                {tempCalorieOverride !== null && (
+                  <button
+                    onClick={() => setTempCalorieOverride(null)}
+                    className="text-[9px] text-muted-foreground/60 hover:text-muted-foreground"
+                    title="Réinitialiser au seuil calculé"
+                  >✕</button>
+                )}
+              </div>
             )}
           </div>
         </div>
