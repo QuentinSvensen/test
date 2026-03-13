@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useMeals, DAYS, TIMES, type PossibleMeal } from "@/hooks/useMeals";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useCalorieBalance } from "@/hooks/useCalorieBalance";
 import { Timer, Flame, Weight, Calendar, Lock } from "lucide-react";
@@ -340,6 +342,7 @@ function PlanningMiniCard({ pm, meal, expired, counterDays, counterUrgent, isPas
 
 export function WeeklyPlanning() {
   const { possibleMeals, updatePlanning, reorderPossibleMeals, getMealsByCategory } = useMeals();
+  const qc = useQueryClient();
   const { getPreference, setPreference } = usePreferences();
   const { items: foodItems } = useFoodItems();
 
@@ -347,6 +350,7 @@ export function WeeklyPlanning() {
   const breakfastSelections = getPreference<Record<string, string>>('planning_breakfast', {});
   const { getDayCalories, DAILY_GOAL, getBreakfastForDay } = useCalorieBalance();
   const petitDejMeals = getMealsByCategory('petit_dejeuner');
+  const possiblePetitDej = possibleMeals.filter(pm => pm.meals?.category === 'petit_dejeuner');
 
   const setBreakfastForDay = (day: string, mealId: string | null) => {
     const updated = { ...breakfastSelections };
@@ -657,8 +661,73 @@ export function WeeklyPlanning() {
 
   const weekTotal = DAYS.reduce((sum, day) => sum + getDayCalories(day), 0);
 
+  const handleManualReset = async () => {
+    if (!confirm('Réinitialiser le planning ? Les cartes seront supprimées et les valeurs sauvegardées (💾) seront restaurées.')) return;
+    const snaps = savedSnapshots;
+    await Promise.all(possibleMeals.map(pm =>
+      (supabase as any).from("possible_meals").delete().eq("id", pm.id)
+    ));
+    const rMC: Record<string, number> = {}, rMP: Record<string, number> = {};
+    const rEC: Record<string, number> = {}, rEP: Record<string, number> = {};
+    const rBC: Record<string, number> = {}, rBP: Record<string, number> = {};
+    const keptBreakfast: Record<string, string> = {};
+    for (const [key, snap] of Object.entries(snaps)) {
+      const s = snap as any;
+      if (key.startsWith('manual-')) { const k = key.replace('manual-', ''); if (s.cal) rMC[k] = s.cal; if (s.prot) rMP[k] = s.prot; }
+      else if (key.startsWith('extra-')) { const k = key.replace('extra-', ''); if (s.cal) rEC[k] = s.cal; if (s.prot) rEP[k] = s.prot; }
+      else if (key.startsWith('breakfast-')) { const k = key.replace('breakfast-', ''); if (s.cal) rBC[k] = s.cal; if (s.prot) rBP[k] = s.prot; if (s.mealId) keptBreakfast[k] = s.mealId; }
+    }
+    setPreference.mutate({ key: 'planning_manual_calories', value: rMC });
+    setPreference.mutate({ key: 'planning_manual_proteins', value: rMP });
+    setPreference.mutate({ key: 'planning_extra_calories', value: rEC });
+    setPreference.mutate({ key: 'planning_extra_proteins', value: rEP });
+    setPreference.mutate({ key: 'planning_breakfast_manual_calories', value: rBC });
+    setPreference.mutate({ key: 'planning_breakfast_manual_proteins', value: rBP });
+    setPreference.mutate({ key: 'planning_breakfast', value: keptBreakfast });
+    setPreference.mutate({ key: 'planning_drink_checks', value: {} });
+    setPreference.mutate({ key: 'last_weekly_reset', value: new Date().toISOString() });
+    qc.invalidateQueries({ queryKey: ["possible_meals"] });
+  };
+
   return (
     <div className={`max-w-4xl mx-auto space-y-3 overflow-x-hidden ${touchDragActive ? "touch-none" : ""}`}>
+      {/* Global planning header */}
+      <div className="rounded-2xl bg-card/80 backdrop-blur-sm p-3 flex items-center gap-3 flex-wrap">
+        <button onClick={handleManualReset} className="text-xs font-semibold bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg px-3 py-1.5 transition-colors">🔄 Reset</button>
+        <div className="flex items-center gap-1">
+          <Flame className="h-3 w-3 text-orange-500" />
+          <input
+            type="number"
+            inputMode="numeric"
+            defaultValue={DAILY_GOAL}
+            key={`global-cal-${DAILY_GOAL}`}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value);
+              if (val && val > 0) setPreference.mutate({ key: 'planning_daily_goal', value: val });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-16 h-6 text-xs bg-transparent border border-dashed border-orange-300/30 rounded px-1 text-orange-500 focus:outline-none focus:border-orange-400/50 text-center"
+          />
+          <span className="text-[9px] text-muted-foreground">kcal/j</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs">🍗</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            defaultValue={DAILY_PROTEIN_GOAL_PREF}
+            key={`global-prot-${DAILY_PROTEIN_GOAL_PREF}`}
+            onBlur={(e) => {
+              const val = parseInt(e.target.value);
+              if (val && val > 0) setPreference.mutate({ key: 'planning_protein_goal', value: val });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-14 h-6 text-xs bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 focus:outline-none focus:border-blue-400/50 text-center"
+          />
+          <span className="text-[9px] text-muted-foreground">prot/j</span>
+        </div>
+      </div>
+
       {DAYS.map((day) => {
         const isToday_ = day === todayKey;
         const dayCalories = getDayCalories(day);
@@ -698,8 +767,19 @@ export function WeeklyPlanning() {
                           {m.name} {m.calories ? `(${m.calories})` : ''}
                         </button>
                       ))}
-                      {petitDejMeals.length === 0 && (
-                        <p className="text-[10px] text-muted-foreground italic px-2 py-1">Aucun petit déj dans "Tous"</p>
+                      {possiblePetitDej.length > 0 && (
+                        <>
+                          <div className="border-t border-border/40 my-1" />
+                          <p className="text-[9px] text-muted-foreground/60 px-2 font-semibold uppercase tracking-wide">Possible</p>
+                          {possiblePetitDej.map(pm => (
+                            <button key={pm.id} onClick={() => setBreakfastForDay(day, pm.meal_id)} className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted transition-colors ${breakfastSelections[day] === pm.meal_id ? 'bg-primary/10 font-bold' : ''}`}>
+                              {pm.meals?.name} {pm.meals?.calories ? `(${pm.meals.calories})` : ''}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      {petitDejMeals.length === 0 && possiblePetitDej.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic px-2 py-1">Aucun petit déj</p>
                       )}
                     </div>
                   </PopoverContent>
@@ -746,20 +826,30 @@ export function WeeklyPlanning() {
                     const snapKey = `breakfast-${day}`;
                     const cal = breakfastManualCalories[day] || 0;
                     const prot = breakfastManualProteins[day] || 0;
-                    const updated = { ...savedSnapshots, [snapKey]: { cal, prot } };
+                    const breakfast = getBreakfastForDay(day);
+                    const mealId = breakfastSelections[day] || undefined;
+                    const updated = { ...savedSnapshots, [snapKey]: { cal, prot, name: breakfast?.name, mealId } };
                     setPreference.mutate({ key: 'planning_saved_snapshots', value: updated });
                     setFlashedKeys(prev => ({ ...prev, [snapKey]: true }));
                     setTimeout(() => setFlashedKeys(prev => ({ ...prev, [snapKey]: false })), 1200);
                   }}
-                  className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors ${
+                  className={`h-5 px-1.5 text-[9px] rounded font-semibold shrink-0 transition-colors max-w-[120px] truncate ${
                     flashedKeys[`breakfast-${day}`]
                       ? 'bg-green-500/30 text-green-400 border border-green-400/50'
                       : savedSnapshots[`breakfast-${day}`]
                         ? 'bg-primary/20 text-primary border border-primary/40'
                         : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
                   }`}
-                  title={savedSnapshots[`breakfast-${day}`] ? `Sauvegardé: ${savedSnapshots[`breakfast-${day}`].cal || 0} kcal / ${savedSnapshots[`breakfast-${day}`].prot || 0} prot` : 'Sauvegarder les valeurs pour le reset'}
-                >💾</button>
+                  title={(() => {
+                    const snap = savedSnapshots[`breakfast-${day}`] as any;
+                    if (!snap) return 'Sauvegarder les valeurs pour le reset';
+                    if (snap.name) return `Sauvegardé: ${snap.name}`;
+                    return `Sauvegardé: ${snap.cal || 0} kcal / ${snap.prot || 0} prot`;
+                  })()}
+                >💾{(() => {
+                  const snap = savedSnapshots[`breakfast-${day}`] as any;
+                  return snap?.name ? ` ${snap.name}` : '';
+                })()}</button>
               </div>
               <div className="flex-1" />
               <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap justify-end">
@@ -867,7 +957,7 @@ export function WeeklyPlanning() {
                     </div>
                     <div className="mt-0.5 space-y-1">
                       {slotMeals.length === 0 ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-col gap-0.5">
                           <input
                             type="number"
                             inputMode="numeric"

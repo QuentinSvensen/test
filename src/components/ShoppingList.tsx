@@ -36,6 +36,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
   const { getPreference, setPreference } = usePreferences();
 
   const { items: foodItems } = useFoodItems();
+  const showGreenChecks = getPreference<boolean>('shopping_show_green_checks', true);
 
   // Color palette for paired ambiguous groups
   const ambiguousColors = [
@@ -376,7 +377,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
         className={`flex items-center gap-0.5 py-1.5 pl-0.5 pr-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing ${isOver ? 'ring-2 ring-primary/60 bg-primary/5' : ''} ${!item.checked ? 'opacity-40' : ''}`}
       >
         {/* Secondary checkbox OR ambiguous indicator (clickable with group color) */}
-        {isAmbiguous ? (() => {
+        {showGreenChecks && (isAmbiguous ? (() => {
           const ambData = ambiguousItemData.get(item.id);
           const colorIdx = ambData?.colorIndex ?? 0;
           const color = ambiguousColors[colorIdx % ambiguousColors.length];
@@ -486,7 +487,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
             }}
             className="shrink-0 opacity-100 data-[state=checked]:bg-green-400 data-[state=checked]:border-green-400 data-[state=checked]:text-white"
           />
-        )}
+        ))}
 
         {/* Primary checkbox */}
         <Checkbox
@@ -620,7 +621,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
               onClick={() => setEditingField(prev => ({ ...prev, [item.id]: "qty" }))}
               className="shrink-0 px-0.5 rounded hover:bg-muted/60 transition-colors"
             >
-              <span className={`text-sm font-bold ${item.secondary_checked ? 'text-green-500' : 'text-foreground'}`}>×{qty}</span>
+              <span className={`text-sm font-bold ${showGreenChecks && item.secondary_checked ? 'text-green-500' : 'text-foreground'}`}>×{qty}</span>
             </button>
           ) : (
             <button

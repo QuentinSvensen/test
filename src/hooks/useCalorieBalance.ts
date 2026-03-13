@@ -27,7 +27,7 @@ function parseCalories(cal: string | null | undefined): number {
 }
 
 export function useCalorieBalance() {
-  const { possibleMeals, getMealsByCategory } = useMeals();
+  const { meals: allMeals, possibleMeals, getMealsByCategory } = useMeals();
   const { getPreference } = usePreferences();
 
   const petitDejMeals = getMealsByCategory('petit_dejeuner');
@@ -50,7 +50,9 @@ export function useCalorieBalance() {
   const getBreakfastForDay = (day: string) => {
     const mealId = breakfastSelections[day];
     if (!mealId) return null;
-    return petitDejMeals.find((m) => m.id === mealId) || null;
+    return petitDejMeals.find((m) => m.id === mealId)
+      || allMeals.find(m => m.id === mealId && m.category === 'petit_dejeuner')
+      || null;
   };
 
   const getDayCalories = (day: string): number => {
