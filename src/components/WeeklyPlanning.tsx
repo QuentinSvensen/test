@@ -1032,7 +1032,7 @@ export function WeeklyPlanning() {
                     </div>
                     <div className="mt-0.5 space-y-1">
                       {slotMeals.length === 0 ? (
-                      <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex flex-col items-start gap-0.5">
                           <input
                             type="number"
                             inputMode="numeric"
