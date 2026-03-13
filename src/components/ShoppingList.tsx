@@ -487,7 +487,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
             }}
             className="shrink-0 opacity-100 data-[state=checked]:bg-green-400 data-[state=checked]:border-green-400 data-[state=checked]:text-white"
           />
-        )}
+        ))}
 
         {/* Primary checkbox */}
         <Checkbox
