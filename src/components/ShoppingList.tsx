@@ -36,6 +36,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
   const { getPreference, setPreference } = usePreferences();
 
   const { items: foodItems } = useFoodItems();
+  const showGreenChecks = getPreference<boolean>('shopping_show_green_checks', true);
 
   // Color palette for paired ambiguous groups
   const ambiguousColors = [
