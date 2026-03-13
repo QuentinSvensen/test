@@ -407,9 +407,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 if (!item.secondary_checked && !isQuickReclick) {
                   // Check this item (confirm choice)
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: true });
-                  const qty = computeSuggestedQty();
-                  updateItemQuantity.mutate({ id: item.id, quantity: String(qty) });
-                  setLocalQuantities(prev => ({ ...prev, [item.id]: String(qty) }));
+                  // Don't save qty — green qty is computed on-the-fly
                   // Uncheck siblings in same ambiguous group
                   if (needKey) {
                     for (const [sibId, sibData] of ambiguousItemData) {
@@ -417,8 +415,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                         const sibItem = items.find(i => i.id === sibId);
                         if (sibItem?.secondary_checked) {
                           toggleSecondaryCheck.mutate({ id: sibId, secondary_checked: false });
-                          updateItemQuantity.mutate({ id: sibId, quantity: null });
-                          setLocalQuantities(prev => { const next = { ...prev }; delete next[sibId]; return next; });
                         }
                       }
                     }
@@ -426,8 +422,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 } else if (item.secondary_checked) {
                   // Uncheck from green ✓ → siblings will reappear as ❓
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
-                  updateItemQuantity.mutate({ id: item.id, quantity: null });
-                  setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
                   if (needKey) {
                     lastAmbiguousUncheck.current[needKey] = now;
                   }
@@ -439,8 +433,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 } else {
                   // Normal click on unchecked ❓ that was already unchecked → just uncheck
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
-                  updateItemQuantity.mutate({ id: item.id, quantity: null });
-                  setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
                 }
               }}
               className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center text-[10px] font-bold transition-colors ${
