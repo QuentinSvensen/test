@@ -415,6 +415,7 @@ export function WeeklyPlanning() {
   const [editingProteinGoal, setEditingProteinGoal] = useState(false);
   const [proteinGoalInput, setProteinGoalInput] = useState("");
   const breakfastManualCalories = getPreference<Record<string, number>>('planning_breakfast_manual_calories', {});
+  const autoConsumeBreakfast = getPreference<Record<string, boolean>>('planning_auto_consume_breakfast', {});
 
   const getDayProtein = (day: string): number => {
     const mealProt = TIMES.reduce((total, time) => {
