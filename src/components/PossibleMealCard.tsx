@@ -110,7 +110,7 @@ export function PossibleMealCard({
     const today = new Date();
     return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
   })() : false;
-  const counterDays = getAdaptedCounterDays(pm.counter_start_date, pm.day_of_week);
+  const counterDays = getAdaptedCounterDays(pm.counter_start_date, pm.day_of_week, pm.created_at);
   
   // Stop blinking if the meal's day is in the past!
   let isPast = false;
