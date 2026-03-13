@@ -407,9 +407,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 if (!item.secondary_checked && !isQuickReclick) {
                   // Check this item (confirm choice)
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: true });
-                  const qty = computeSuggestedQty();
-                  updateItemQuantity.mutate({ id: item.id, quantity: String(qty) });
-                  setLocalQuantities(prev => ({ ...prev, [item.id]: String(qty) }));
+                  // Don't save qty — green qty is computed on-the-fly
                   // Uncheck siblings in same ambiguous group
                   if (needKey) {
                     for (const [sibId, sibData] of ambiguousItemData) {
@@ -417,8 +415,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                         const sibItem = items.find(i => i.id === sibId);
                         if (sibItem?.secondary_checked) {
                           toggleSecondaryCheck.mutate({ id: sibId, secondary_checked: false });
-                          updateItemQuantity.mutate({ id: sibId, quantity: null });
-                          setLocalQuantities(prev => { const next = { ...prev }; delete next[sibId]; return next; });
                         }
                       }
                     }
@@ -426,8 +422,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 } else if (item.secondary_checked) {
                   // Uncheck from green ✓ → siblings will reappear as ❓
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
-                  updateItemQuantity.mutate({ id: item.id, quantity: null });
-                  setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
                   if (needKey) {
                     lastAmbiguousUncheck.current[needKey] = now;
                   }
@@ -439,8 +433,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
                 } else {
                   // Normal click on unchecked ❓ that was already unchecked → just uncheck
                   toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
-                  updateItemQuantity.mutate({ id: item.id, quantity: null });
-                  setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
                 }
               }}
               className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center text-[10px] font-bold transition-colors ${
@@ -458,32 +450,7 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
             checked={item.secondary_checked}
             onCheckedChange={(checked) => {
               toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: !!checked });
-              if (!checked) {
-                updateItemQuantity.mutate({ id: item.id, quantity: null });
-                setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
-              } else {
-                // Re-checking green: restore the needed quantity from persisted menu needs
-                const needsRaw = getPreference<Record<string, { grams: number; count: number }>>('menu_generator_needs_v1', {});
-                const normalizeKey = (name: string) => name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").replace(/s$/, "").trim();
-                const itemKey = normalizeKey(item.name);
-                for (const [needKey, need] of Object.entries(needsRaw)) {
-                  if (itemKey === needKey || normalizeKey(needKey) === itemKey) {
-                    const nb = item.content_quantity ? parseFloat(item.content_quantity.replace(/[^0-9.,]/g, '').replace(',', '.')) : 0;
-                    const nbType = (item as any).content_quantity_type;
-                    let qtyNeeded = 1;
-                    if (nb > 0 && (nbType === 'g' || (!nbType && /g/i.test(item.content_quantity || ''))) && need.grams > 0) {
-                      qtyNeeded = Math.ceil(need.grams / nb);
-                    } else if (nb > 0 && need.count > 0) {
-                      qtyNeeded = Math.ceil(need.count / nb);
-                    } else if (need.count > 0) {
-                      qtyNeeded = Math.ceil(need.count);
-                    }
-                    updateItemQuantity.mutate({ id: item.id, quantity: String(qtyNeeded) });
-                    setLocalQuantities(prev => ({ ...prev, [item.id]: String(qtyNeeded) }));
-                    break;
-                  }
-                }
-              }
+              // Don't modify the item's quantity — green qty is computed on-the-fly
             }}
             className="shrink-0 opacity-100 data-[state=checked]:bg-green-400 data-[state=checked]:border-green-400 data-[state=checked]:text-white"
           />
@@ -499,8 +466,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
               if (item.secondary_checked) {
                 toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
               }
-              updateItemQuantity.mutate({ id: item.id, quantity: null });
-              setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
             }
           }}
           className={`shrink-0 opacity-100 ${item.checked ? 'border-yellow-500 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-black' : ''}`}
@@ -617,28 +582,54 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
           </div>
         ) : (
           (() => {
-            // When showGreenChecks is off and item has a green-check-generated qty,
-            // show the user's own qty if any, otherwise hide it
-            const isGreenQty = item.secondary_checked;
-            const hideGreenQty = !showGreenChecks && isGreenQty;
+            // Compute green qty on-the-fly from menu needs
+            const computeGreenQty = (): string | null => {
+              if (!item.secondary_checked) return null;
+              const needsRaw = getPreference<Record<string, { grams: number; count: number }>>('menu_generator_needs_v1', {});
+              const itemKey = normalizeKey(item.name);
+              // Check ambiguous data first
+              const ambData = ambiguousItemData.get(item.id);
+              const checkKey = ambData?.needKey;
+              
+              for (const [nk, need] of Object.entries(needsRaw)) {
+                if (checkKey ? nk === checkKey : (itemKey === nk || normalizeKey(nk) === itemKey)) {
+                  const nb = item.content_quantity ? parseFloat(item.content_quantity.replace(/[^0-9.,]/g, '').replace(',', '.')) : 0;
+                  const nbType = (item as any).content_quantity_type;
+                  let qtyNeeded = 1;
+                  if (nb > 0 && (nbType === 'g' || (!nbType && /g/i.test(item.content_quantity || ''))) && need.grams > 0) {
+                    qtyNeeded = Math.ceil(need.grams / nb);
+                  } else if (nb > 0 && need.count > 0) {
+                    qtyNeeded = Math.ceil(need.count / nb);
+                  } else if (need.count > 0) {
+                    qtyNeeded = Math.ceil(need.count);
+                  }
+                  return String(qtyNeeded);
+                }
+              }
+              return null;
+            };
             
-            if (hideGreenQty) {
-              // Show nothing (green qty hidden), but allow adding a qty
+            const greenQty = computeGreenQty();
+            const userQty = qty; // manual quantity from the item
+            
+            if (showGreenChecks && greenQty) {
+              // Show green qty overlaying user qty
               return (
                 <button
                   onClick={() => setEditingField(prev => ({ ...prev, [item.id]: "qty" }))}
-                  className="shrink-0 px-0.5 rounded hover:bg-muted/60 transition-colors text-[9px] text-muted-foreground/20"
+                  className="shrink-0 px-0.5 rounded hover:bg-muted/60 transition-colors"
                 >
-                  Qté
+                  <span className="text-sm font-bold text-green-500">×{greenQty}</span>
                 </button>
               );
             }
-            if (qty) return (
+            // Show user's manual qty (or Qté placeholder)
+            if (userQty) return (
               <button
                 onClick={() => setEditingField(prev => ({ ...prev, [item.id]: "qty" }))}
                 className="shrink-0 px-0.5 rounded hover:bg-muted/60 transition-colors"
               >
-                <span className={`text-sm font-bold ${showGreenChecks && item.secondary_checked ? 'text-green-500' : 'text-foreground'}`}>×{qty}</span>
+                <span className="text-sm font-bold text-foreground">×{userQty}</span>
               </button>
             );
             return (

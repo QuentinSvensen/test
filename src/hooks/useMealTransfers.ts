@@ -207,9 +207,11 @@ export function useMealTransfers(foodItems: FoodItem[]) {
 
     const oldGroups = oldIngredients ? parseIngredientGroups(oldIngredients) : [];
     const newGroups = newIngredients ? parseIngredientGroups(newIngredients) : [];
-    const buildUsageMap = (groups: Array<Array<{qty: number; count: number; name: string}>>) => {
+    const buildUsageMap = (groups: Array<Array<{qty: number; count: number; name: string; optional?: boolean}>>) => {
       const map = new Map<string, {grams: number; count: number}>();
       for (const group of groups) {
+        // Skip optional ingredient groups — they are not consumed
+        if (group.every(alt => (alt as any).optional)) continue;
         if (group.length > 0) {
           const alt = group[0];
           const prev = map.get(alt.name) ?? { grams: 0, count: 0 };
