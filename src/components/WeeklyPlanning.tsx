@@ -821,6 +821,23 @@ export function WeeklyPlanning() {
                     />
                   </>
                 )}
+                {/* Auto-consume breakfast toggle */}
+                {getBreakfastForDay(day) && (
+                  <button
+                    onClick={() => {
+                      const updated = { ...autoConsumeBreakfast };
+                      if (updated[day]) delete updated[day];
+                      else updated[day] = true;
+                      setPreference.mutate({ key: 'planning_auto_consume_breakfast', value: updated });
+                    }}
+                    className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center ${
+                      autoConsumeBreakfast[day]
+                        ? 'bg-green-500/20 text-green-400 border border-green-400/50'
+                        : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                    }`}
+                    title={autoConsumeBreakfast[day] ? 'Auto-consommation activée — sera déduit à 23h59 ou au prochain lancement' : 'Activer la décompte automatique du petit déj'}
+                  >🔄</button>
+                )}
                 <button
                   onClick={() => {
                     const snapKey = `breakfast-${day}`;
