@@ -466,8 +466,6 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
               if (item.secondary_checked) {
                 toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: false });
               }
-              updateItemQuantity.mutate({ id: item.id, quantity: null });
-              setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
             }
           }}
           className={`shrink-0 opacity-100 ${item.checked ? 'border-yellow-500 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-black' : ''}`}
