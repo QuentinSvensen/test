@@ -60,7 +60,9 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
   const [editingRatioId, setEditingRatioId] = useState<string | null>(null);
   const [ratioInput, setRatioInput] = useState("");
   const { getTargetCalorieThreshold } = useCalorieBalance();
-  const calorieThreshold = getTargetCalorieThreshold();
+  const baseCalorieThreshold = getTargetCalorieThreshold();
+  const [tempCalorieOverride, setTempCalorieOverride] = useState<number | null>(null);
+  const calorieThreshold = tempCalorieOverride ?? baseCalorieThreshold;
 
   const parseRatioInput = (input: string, maxRatio: number): number | null => {
     const trimmed = input.trim().toLowerCase();
