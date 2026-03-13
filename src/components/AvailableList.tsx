@@ -234,6 +234,53 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
     });
   })();
 
+  // Cross-category expiring items: food items used in OTHER categories that expire within 3 days
+  const crossCategoryExpiringItems = (() => {
+    const todayMs = new Date(new Date().toDateString()).getTime();
+    const threeDaysMs = 3 * 86400000;
+    const currentCat = category.value;
+
+    // Find food items that expire within 3 days
+    const expiringItems = foodItems.filter(fi => {
+      if (fi.storage_type === 'toujours' || fi.is_meal) return false;
+      if (!fi.expiration_date) return false;
+      const expMs = new Date(fi.expiration_date).getTime();
+      const daysUntil = expMs - todayMs;
+      return daysUntil <= threeDaysMs; // includes already expired
+    });
+
+    // For each expiring item, check which categories use it
+    const result: FoodItem[] = [];
+    for (const fi of expiringItems) {
+      const fiKey = normalizeForMatch(fi.name);
+      // Find which categories this item belongs to (via meal ingredients or name match)
+      const belongsToCategories = new Set<string>();
+      for (const meal of allMeals) {
+        if (meal.ingredients?.trim()) {
+          const groups = parseIngredientGroups(meal.ingredients);
+          for (const group of groups) {
+            for (const alt of group) {
+              const altKey = findStockKey(stockMap, alt.name);
+              if (altKey && strictNameMatch(fiKey, altKey)) {
+                belongsToCategories.add(meal.category);
+              }
+            }
+          }
+        } else if (strictNameMatch(meal.name, fi.name)) {
+          belongsToCategories.add(meal.category);
+        }
+      }
+      // Show in this category only if item does NOT belong to this category
+      if (belongsToCategories.size > 0 && !belongsToCategories.has(currentCat)) {
+        // Check it's not already in the unused list
+        if (!unusedFoodItems.some(u => u.id === fi.id)) {
+          result.push(fi);
+        }
+      }
+    }
+    return result;
+  })();
+
   // Sort
   let sortedAvailable = [...available];
   let sortedNameMatches = [...nameMatches];
