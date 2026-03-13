@@ -27,7 +27,7 @@ function parseCalories(cal: string | null | undefined): number {
 }
 
 export function useCalorieBalance() {
-  const { possibleMeals, getMealsByCategory } = useMeals();
+  const { meals: allMeals, possibleMeals, getMealsByCategory } = useMeals();
   const { getPreference } = usePreferences();
 
   const petitDejMeals = getMealsByCategory('petit_dejeuner');
