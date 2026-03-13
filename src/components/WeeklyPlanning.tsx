@@ -745,6 +745,7 @@ export function WeeklyPlanning() {
     setPreference.mutate({ key: 'planning_breakfast_manual_proteins', value: rBP });
     setPreference.mutate({ key: 'planning_breakfast', value: keptBreakfast });
     setPreference.mutate({ key: 'planning_drink_checks', value: {} });
+    setPreference.mutate({ key: 'planning_auto_consumed_days', value: {} });
     setPreference.mutate({ key: 'last_weekly_reset', value: new Date().toISOString() });
     qc.invalidateQueries({ queryKey: ["possible_meals"] });
   };
