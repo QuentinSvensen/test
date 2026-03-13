@@ -342,6 +342,7 @@ function PlanningMiniCard({ pm, meal, expired, counterDays, counterUrgent, isPas
 
 export function WeeklyPlanning() {
   const { possibleMeals, updatePlanning, reorderPossibleMeals, getMealsByCategory } = useMeals();
+  const qc = useQueryClient();
   const { getPreference, setPreference } = usePreferences();
   const { items: foodItems } = useFoodItems();
 
