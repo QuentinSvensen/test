@@ -190,6 +190,21 @@ export function useMealTransfers(foodItems: FoodItem[]) {
 
   /** Adjust stock when possible meal ingredients are edited (delta-based) */
   const adjustStockForIngredientChange = async (oldIngredients: string | null, newIngredients: string | null, snapshots?: FoodItem[]) => {
+    // Refetch fresh food items to avoid stale data after multiple edits
+    const { data: freshItems } = await supabase.from("food_items").select("*").order("sort_order", { ascending: true });
+    const currentFoodItems: FoodItem[] = (freshItems ?? []).map((d: any) => ({
+      ...d,
+      is_meal: d.is_meal ?? false,
+      is_infinite: d.is_infinite ?? false,
+      is_dry: d.is_dry ?? false,
+      is_indivisible: d.is_indivisible ?? false,
+      no_counter: d.no_counter ?? false,
+      storage_type: d.storage_type ?? (d.is_dry ? "sec" : "frigo"),
+      quantity: d.quantity ?? null,
+      food_type: d.food_type ?? null,
+      protein: d.protein ?? null,
+    })) as FoodItem[];
+
     const oldGroups = oldIngredients ? parseIngredientGroups(oldIngredients) : [];
     const newGroups = newIngredients ? parseIngredientGroups(newIngredients) : [];
     const buildUsageMap = (groups: Array<Array<{qty: number; count: number; name: string}>>) => {
@@ -214,7 +229,7 @@ export function useMealTransfers(foodItems: FoodItem[]) {
       const deltaCount = newU.count - oldU.count;
       if (deltaGrams === 0 && deltaCount === 0) continue;
 
-      const matchingItems = foodItems.filter(fi => strictNameMatch(fi.name, ingName) && !fi.is_infinite).sort(sortStockDeductionPriority);
+      const matchingItems = currentFoodItems.filter(fi => strictNameMatch(fi.name, ingName) && !fi.is_infinite).sort(sortStockDeductionPriority);
 
       if (deltaGrams > 0) {
         let toDeduct = deltaGrams;
@@ -246,7 +261,7 @@ export function useMealTransfers(foodItems: FoodItem[]) {
         const toAdd = -deltaGrams;
         // Prefer the exact food item that was originally deducted (from snapshot)
         const snapshotFi = snapshots?.find(s => strictNameMatch(s.name, ingName));
-        const fi = snapshotFi ? (foodItems.find(f => f.id === snapshotFi.id) ?? null) : (matchingItems[0] ?? null);
+        const fi = snapshotFi ? (currentFoodItems.find(f => f.id === snapshotFi.id) ?? null) : (matchingItems[0] ?? null);
         
         if (fi) {
           // Item still exists in stock — add grams to it

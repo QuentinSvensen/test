@@ -385,6 +385,65 @@ export function WeeklyPlanning() {
     }
   }, []);
 
+  // Auto-consume breakfast for past days
+  const autoConsumedDays = getPreference<Record<string, boolean>>('planning_auto_consumed_days', {});
+  const autoConsumeChecked = useRef(false);
+  useEffect(() => {
+    if (autoConsumeChecked.current) return;
+    autoConsumeChecked.current = true;
+    
+    const todayIdx = DAY_KEY_TO_INDEX[todayKey];
+    const pastDays = DAYS.filter((_, i) => i < todayIdx);
+    
+    const toConsume: string[] = [];
+    for (const day of pastDays) {
+      if (autoConsumeBreakfast[day] && breakfastSelections[day] && !autoConsumedDays[day]) {
+        toConsume.push(day);
+      }
+    }
+    
+    if (toConsume.length > 0) {
+      const updatedConsumed = { ...autoConsumedDays };
+      for (const day of toConsume) {
+        updatedConsumed[day] = true;
+        const mealId = breakfastSelections[day];
+        const breakfast = petitDejMeals.find(m => m.id === mealId) || possibleMeals.find(pm => pm.meal_id === mealId)?.meals;
+        if (breakfast) {
+          // Deduct breakfast from stock (name match)
+          const mealGrams = breakfast.grams ? parseFloat(breakfast.grams.replace(/[^0-9.]/g, '')) : 0;
+          const nameMatch = foodItems.find(fi => fi.name.toLowerCase().trim() === breakfast.name.toLowerCase().trim() && !fi.is_infinite);
+          if (nameMatch) {
+            if (mealGrams > 0) {
+              const perUnit = parseFloat((nameMatch.grams || '0').replace(/[^0-9.]/g, ''));
+              if (perUnit > 0) {
+                const totalAvail = (nameMatch.quantity ?? 1) * perUnit;
+                const remaining = totalAvail - mealGrams;
+                if (remaining <= 0) {
+                  supabase.from("food_items").delete().eq("id", nameMatch.id).then(() => qc.invalidateQueries({ queryKey: ["food_items"] }));
+                } else {
+                  const fullUnits = Math.floor(remaining / perUnit);
+                  const rem = Math.round((remaining - fullUnits * perUnit) * 10) / 10;
+                  supabase.from("food_items").update({ 
+                    quantity: rem > 0 ? fullUnits + 1 : Math.max(1, fullUnits), 
+                    grams: rem > 0 ? `${perUnit}(${rem})` : String(perUnit) 
+                  } as any).eq("id", nameMatch.id).then(() => qc.invalidateQueries({ queryKey: ["food_items"] }));
+                }
+              }
+            } else {
+              const currentQty = nameMatch.quantity ?? 1;
+              if (currentQty <= 1) {
+                supabase.from("food_items").delete().eq("id", nameMatch.id).then(() => qc.invalidateQueries({ queryKey: ["food_items"] }));
+              } else {
+                supabase.from("food_items").update({ quantity: currentQty - 1 } as any).eq("id", nameMatch.id).then(() => qc.invalidateQueries({ queryKey: ["food_items"] }));
+              }
+            }
+          }
+        }
+      }
+      setPreference.mutate({ key: 'planning_auto_consumed_days', value: updatedConsumed });
+    }
+  }, []);
+
   const planningMeals = possibleMeals.filter((pm) => {
     if (pm.meals?.category === "plat") return true;
     // Non-plat categories: only show if they have a planning date assigned
@@ -415,6 +474,7 @@ export function WeeklyPlanning() {
   const [editingProteinGoal, setEditingProteinGoal] = useState(false);
   const [proteinGoalInput, setProteinGoalInput] = useState("");
   const breakfastManualCalories = getPreference<Record<string, number>>('planning_breakfast_manual_calories', {});
+  const autoConsumeBreakfast = getPreference<Record<string, boolean>>('planning_auto_consume_breakfast', {});
 
   const getDayProtein = (day: string): number => {
     const mealProt = TIMES.reduce((total, time) => {
@@ -685,6 +745,7 @@ export function WeeklyPlanning() {
     setPreference.mutate({ key: 'planning_breakfast_manual_proteins', value: rBP });
     setPreference.mutate({ key: 'planning_breakfast', value: keptBreakfast });
     setPreference.mutate({ key: 'planning_drink_checks', value: {} });
+    setPreference.mutate({ key: 'planning_auto_consumed_days', value: {} });
     setPreference.mutate({ key: 'last_weekly_reset', value: new Date().toISOString() });
     qc.invalidateQueries({ queryKey: ["possible_meals"] });
   };
@@ -821,6 +882,23 @@ export function WeeklyPlanning() {
                     />
                   </>
                 )}
+                {/* Auto-consume breakfast toggle */}
+                {getBreakfastForDay(day) && (
+                  <button
+                    onClick={() => {
+                      const updated = { ...autoConsumeBreakfast };
+                      if (updated[day]) delete updated[day];
+                      else updated[day] = true;
+                      setPreference.mutate({ key: 'planning_auto_consume_breakfast', value: updated });
+                    }}
+                    className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center ${
+                      autoConsumeBreakfast[day]
+                        ? 'bg-green-500/20 text-green-400 border border-green-400/50'
+                        : 'bg-muted/40 text-muted-foreground/40 hover:text-muted-foreground/60 border border-transparent'
+                    }`}
+                    title={autoConsumeBreakfast[day] ? 'Auto-consommation activée — sera déduit à 23h59 ou au prochain lancement' : 'Activer la décompte automatique du petit déj'}
+                  >🔄</button>
+                )}
                 <button
                   onClick={() => {
                     const snapKey = `breakfast-${day}`;
@@ -954,7 +1032,7 @@ export function WeeklyPlanning() {
                     </div>
                     <div className="mt-0.5 space-y-1">
                       {slotMeals.length === 0 ? (
-                        <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col items-center gap-0.5">
                           <input
                             type="number"
                             inputMode="numeric"
@@ -970,7 +1048,7 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_calories', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-muted-foreground/20 rounded px-1 text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40 text-center"
                           />
                           <input
                             type="number"
@@ -987,7 +1065,7 @@ export function WeeklyPlanning() {
                               setPreference.mutate({ key: 'planning_manual_proteins', value: updated });
                             }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40"
+                            className="w-14 h-5 text-[10px] bg-transparent border border-dashed border-blue-400/20 rounded px-1 text-blue-400 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-400/40 text-center"
                           />
                           <button
                             onClick={() => {
@@ -999,7 +1077,7 @@ export function WeeklyPlanning() {
                               setFlashedKeys(prev => ({ ...prev, [snapKey]: true }));
                               setTimeout(() => setFlashedKeys(prev => ({ ...prev, [snapKey]: false })), 1200);
                             }}
-                            className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center self-center ${
+                            className={`h-5 w-5 text-[9px] rounded font-semibold shrink-0 transition-colors flex items-center justify-center ${
                               flashedKeys[`manual-${day}-${time}`]
                                 ? 'bg-green-500/30 text-green-400 border border-green-400/50'
                                 : savedSnapshots[`manual-${day}-${time}`]

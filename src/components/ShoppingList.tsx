@@ -617,8 +617,22 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
           </div>
         ) : (
           (() => {
-            const hideMenuQty = !showGreenChecks && item.secondary_checked;
-            if (hideMenuQty) return null;
+            // When showGreenChecks is off and item has a green-check-generated qty,
+            // show the user's own qty if any, otherwise hide it
+            const isGreenQty = item.secondary_checked;
+            const hideGreenQty = !showGreenChecks && isGreenQty;
+            
+            if (hideGreenQty) {
+              // Show nothing (green qty hidden), but allow adding a qty
+              return (
+                <button
+                  onClick={() => setEditingField(prev => ({ ...prev, [item.id]: "qty" }))}
+                  className="shrink-0 px-0.5 rounded hover:bg-muted/60 transition-colors text-[9px] text-muted-foreground/20"
+                >
+                  Qté
+                </button>
+              );
+            }
             if (qty) return (
               <button
                 onClick={() => setEditingField(prev => ({ ...prev, [item.id]: "qty" }))}
