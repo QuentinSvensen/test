@@ -709,7 +709,20 @@ const Index = () => {
                   onUpdateCalories={(id, cal) => updateCalories.mutate({ id, calories: cal })}
                   onUpdateProtein={(id, prot) => updateProtein.mutate({ id, protein: prot })}
                   onUpdateGrams={(id, g) => updateGrams.mutate({ id, grams: g })}
-                  onUpdateIngredients={(id, ing) => updateIngredients.mutate({ id, ingredients: ing })}
+                  onUpdateIngredients={(id, ing) => {
+                    updateIngredients.mutate({ id, ingredients: ing });
+                    // Propagate cal/prot to other meals with same ingredient names
+                    if (ing) {
+                      const macros = extractIngredientMacros(ing);
+                      if (macros.size > 0) {
+                        for (const m of meals) {
+                          if (m.id === id || !m.ingredients) continue;
+                          const updated = applyIngredientMacros(m.ingredients, macros);
+                          if (updated) updateIngredients.mutate({ id: m.id, ingredients: updated });
+                        }
+                      }
+                    }
+                  }}
                   onToggleFavorite={(id) => {
                     const meal = meals.find((m) => m.id === id);
                     if (meal) toggleFavorite.mutate({ id, is_favorite: !meal.is_favorite });
