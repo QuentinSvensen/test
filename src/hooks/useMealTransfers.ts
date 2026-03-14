@@ -276,8 +276,9 @@ export function useMealTransfers(foodItems: FoodItem[]) {
             const newTotal = currentTotal + toAdd;
             const fullUnits = Math.floor(newTotal / perUnit);
             const rem = Math.round((newTotal - fullUnits * perUnit) * 10) / 10;
+            const shouldClearCounter = rem <= 0 && fi.counter_start_date;
             await safeMutate("Ajustement stock", () =>
-              supabase.from("food_items").update({ quantity: rem > 0 ? fullUnits + 1 : fullUnits, grams: encodeStoredGrams(perUnit, rem > 0 ? rem : null) } as any).eq("id", fi.id)
+              supabase.from("food_items").update({ quantity: rem > 0 ? fullUnits + 1 : fullUnits, grams: encodeStoredGrams(perUnit, rem > 0 ? rem : null), ...(shouldClearCounter ? { counter_start_date: null } : {}) } as any).eq("id", fi.id)
             );
           } else {
             const current = parseQty(fi.grams);

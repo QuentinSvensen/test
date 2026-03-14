@@ -448,10 +448,20 @@ export function PossibleMealCard({
               <Weight className="h-2.5 w-2.5" />{meal.grams}
             </button>
           )}
+          {detectedRatio !== null && (
+            <button onClick={() => { setEditValue(detectedRatio >= 1 ? `x${Math.round(detectedRatio * 10) / 10}` : `${Math.round(detectedRatio * 100)}%`); setEditing("ratio"); }} className="bg-orange-500/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hover:bg-orange-500/90 transition-colors shrink-0">
+              {detectedRatio >= 1 && Number.isInteger(detectedRatio) ? `x${detectedRatio}` : `${Math.round(detectedRatio * 100)}%`}
+            </button>
+          )}
           {(() => {
             const ingCal = computeIngredientCalories(displayIngredients);
-            const displayCal = ingCal !== null ? String(ingCal) : meal.calories;
+            let displayCal = ingCal !== null ? String(ingCal) : meal.calories;
             const isComputed = ingCal !== null;
+            // Scale manual calories by detected ratio
+            if (!isComputed && displayCal && detectedRatio !== null) {
+              const raw = parseFloat(displayCal.replace(/[^0-9.]/g, ''));
+              if (raw > 0) displayCal = String(Math.round(raw * detectedRatio));
+            }
             return displayCal ? (
               <button onClick={() => { setEditValue(meal.calories || ""); setEditing("calories"); }} className={`text-[10px] text-white px-1 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 ${
                 isComputed ? 'bg-orange-500/50 font-bold hover:bg-orange-500/60' : 'bg-black/30 text-white/90 hover:bg-black/40'
@@ -462,8 +472,13 @@ export function PossibleMealCard({
           })()}
           {(() => {
             const ingPro = computeIngredientProtein(displayIngredients);
-            const displayPro = ingPro !== null ? String(ingPro) : meal.protein;
+            let displayPro = ingPro !== null ? String(ingPro) : meal.protein;
             const isComputedPro = ingPro !== null;
+            // Scale manual protein by detected ratio
+            if (!isComputedPro && displayPro && detectedRatio !== null) {
+              const raw = parseFloat(displayPro.replace(/[^0-9.]/g, ''));
+              if (raw > 0) displayPro = String(Math.round(raw * detectedRatio));
+            }
             return displayPro ? (
               <span className={`text-[10px] px-1 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 font-semibold ${
                 isComputedPro ? 'bg-blue-600/60 text-white' : 'text-white/90 bg-blue-500/40'

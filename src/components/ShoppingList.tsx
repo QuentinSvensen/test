@@ -450,7 +450,10 @@ export const ShoppingList = forwardRef<HTMLDivElement>(function ShoppingList(_pr
             checked={item.secondary_checked}
             onCheckedChange={(checked) => {
               toggleSecondaryCheck.mutate({ id: item.id, secondary_checked: !!checked });
-              // Don't modify the item's quantity — green qty is computed on-the-fly
+              if (!checked && item.quantity) {
+                updateItemQuantity.mutate({ id: item.id, quantity: null });
+                setLocalQuantities(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+              }
             }}
             className="shrink-0 opacity-100 data-[state=checked]:bg-green-400 data-[state=checked]:border-green-400 data-[state=checked]:text-white"
           />
