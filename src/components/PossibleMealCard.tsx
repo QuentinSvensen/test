@@ -104,6 +104,35 @@ export function PossibleMealCard({
 
   const displayIngredients = pm.ingredients_override ?? meal.ingredients;
 
+  // Detect scale ratio from override vs original ingredients
+  const detectScaleRatio = (): number | null => {
+    if (!pm.ingredients_override || !meal.ingredients) return null;
+    const origGroups = meal.ingredients.split(/(?:\n|,(?!\d))/).map(s => s.trim()).filter(Boolean);
+    const overGroups = pm.ingredients_override.split(/(?:\n|,(?!\d))/).map(s => s.trim()).filter(Boolean);
+    if (origGroups.length === 0) return null;
+    for (let i = 0; i < Math.min(origGroups.length, overGroups.length); i++) {
+      const origAlt = origGroups[i].split(/\|/)[0].trim();
+      const overAlt = overGroups[i].split(/\|/)[0].trim();
+      if (origAlt.startsWith("?")) continue;
+      const origMatch = origAlt.match(/^(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammes?|kg|ml|cl|l)\s/i);
+      const overMatch = overAlt.match(/^(\d+(?:[.,]\d+)?)\s*(?:g|gr|grammes?|kg|ml|cl|l)\s/i);
+      if (origMatch && overMatch) {
+        const origQty = parseFloat(origMatch[1].replace(",", "."));
+        const overQty = parseFloat(overMatch[1].replace(",", "."));
+        if (origQty > 0 && overQty > 0 && Math.abs(overQty / origQty - 1) > 0.01) return overQty / origQty;
+      }
+      const origCountMatch = origAlt.match(/^(\d+(?:[.,]\d+)?)\s+\S/);
+      const overCountMatch = overAlt.match(/^(\d+(?:[.,]\d+)?)\s+\S/);
+      if (origCountMatch && overCountMatch && !origMatch && !overMatch) {
+        const origCount = parseFloat(origCountMatch[1].replace(",", "."));
+        const overCount = parseFloat(overCountMatch[1].replace(",", "."));
+        if (origCount > 0 && overCount > 0 && Math.abs(overCount / origCount - 1) > 0.01) return overCount / origCount;
+      }
+    }
+    return null;
+  };
+  const detectedRatio = detectScaleRatio();
+
   const isExpired = pm.expiration_date && new Date(pm.expiration_date) < new Date();
   const expIsToday = pm.expiration_date ? (() => {
     const d = new Date(pm.expiration_date!);
