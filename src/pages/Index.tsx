@@ -26,6 +26,7 @@ import {
   normalizeForMatch, normalizeKey, strictNameMatch,
   parseQty, parsePartialQty, formatNumeric, encodeStoredGrams,
   getFoodItemTotalGrams, parseIngredientGroups, computeIngredientCalories,
+  extractIngredientMacros, applyIngredientMacros,
 } from "@/lib/ingredientUtils";
 import {
   buildStockMap, findStockKey, pickBestAlternative,
@@ -708,7 +709,20 @@ const Index = () => {
                   onUpdateCalories={(id, cal) => updateCalories.mutate({ id, calories: cal })}
                   onUpdateProtein={(id, prot) => updateProtein.mutate({ id, protein: prot })}
                   onUpdateGrams={(id, g) => updateGrams.mutate({ id, grams: g })}
-                  onUpdateIngredients={(id, ing) => updateIngredients.mutate({ id, ingredients: ing })}
+                  onUpdateIngredients={(id, ing) => {
+                    updateIngredients.mutate({ id, ingredients: ing });
+                    // Propagate cal/prot to other meals with same ingredient names
+                    if (ing) {
+                      const macros = extractIngredientMacros(ing);
+                      if (macros.size > 0) {
+                        for (const m of meals) {
+                          if (m.id === id || !m.ingredients) continue;
+                          const updated = applyIngredientMacros(m.ingredients, macros);
+                          if (updated) updateIngredients.mutate({ id: m.id, ingredients: updated });
+                        }
+                      }
+                    }
+                  }}
                   onToggleFavorite={(id) => {
                     const meal = meals.find((m) => m.id === id);
                     if (meal) toggleFavorite.mutate({ id, is_favorite: !meal.is_favorite });
@@ -793,9 +807,10 @@ const Index = () => {
                   const pm = getPossibleByCategory(cat.value).find(p => p.id === id);
                   const snapshots = deductionSnapshots[id];
                   if (pm?.ingredients_override && pm?.meals) {
-                    // Card was edited — restore based on current override ingredients
-                    const mealForRestore = { ...pm.meals, ingredients: pm.ingredients_override };
-                    await restoreIngredientsToStock(mealForRestore, snapshots);
+                    // Card was edited — use adjustStockForIngredientChange to cleanly reverse
+                    // This handles renamed ingredients correctly by restoring based on current state
+                    const currentIngredients = pm.ingredients_override;
+                    await adjustStockForIngredientChange(currentIngredients, null, snapshots);
                   } else if (snapshots && snapshots.length > 0) {
                     await restoreIngredientsToStock({} as Meal, snapshots);
                   } else if (pm?.meals) {

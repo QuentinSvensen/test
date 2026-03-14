@@ -234,9 +234,17 @@ export function PossibleMealCard({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className={`group flex flex-col rounded-2xl px-3 py-2.5 shadow-md cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] hover:shadow-lg ${isHighlighted ? 'ring-4 ring-yellow-400 scale-105' : expIsToday ? 'ring-2 ring-red-500' : isExpired ? 'ring-2 ring-red-500' : ''}`}
+      className={`group relative flex flex-col rounded-2xl px-3 py-2.5 shadow-md cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] hover:shadow-lg ${isHighlighted ? 'ring-4 ring-yellow-400 scale-105' : expIsToday ? 'ring-2 ring-red-500' : isExpired ? 'ring-2 ring-red-500' : ''}`}
       style={{ backgroundColor: meal.color }}
     >
+      {/* Multiplier badge — absolute top-right like in "au choix" cards */}
+      {detectedRatio !== null && !editing && !editingIngredients && (
+        <div className="absolute top-1 right-2 z-10">
+          <button onClick={() => { setEditValue(detectedRatio >= 1 ? `x${Math.round(detectedRatio * 10) / 10}` : `${Math.round(detectedRatio * 100)}%`); setEditing("ratio"); }} className="bg-orange-500/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hover:bg-orange-500/90 transition-colors">
+            {detectedRatio >= 1 && Number.isInteger(detectedRatio) ? `x${detectedRatio}` : `${Math.round(detectedRatio * 100)}%`}
+          </button>
+        </div>
+      )}
       {/* Row 1: name + actions */}
       <div className="flex items-start gap-1.5 min-w-0">
         <Button size="icon" variant="ghost" onClick={onRemove} className="h-6 w-6 shrink-0 text-white/80 hover:text-white hover:bg-white/20 mt-0.5">
@@ -448,11 +456,7 @@ export function PossibleMealCard({
               <Weight className="h-2.5 w-2.5" />{meal.grams}
             </button>
           )}
-          {detectedRatio !== null && (
-            <button onClick={() => { setEditValue(detectedRatio >= 1 ? `x${Math.round(detectedRatio * 10) / 10}` : `${Math.round(detectedRatio * 100)}%`); setEditing("ratio"); }} className="bg-orange-500/80 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full hover:bg-orange-500/90 transition-colors shrink-0">
-              {detectedRatio >= 1 && Number.isInteger(detectedRatio) ? `x${detectedRatio}` : `${Math.round(detectedRatio * 100)}%`}
-            </button>
-          )}
+          {/* ratio badge moved to absolute top-right */}
           {(() => {
             const ingCal = computeIngredientCalories(displayIngredients);
             let displayCal = ingCal !== null ? String(ingCal) : meal.calories;
