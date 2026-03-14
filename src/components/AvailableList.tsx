@@ -937,7 +937,17 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
                 unified.push({ type: 'partial', item, sortDate: expDate, sortCounter: maxCounter, sortCalories: getDisplayedCalories(displayMeal) });
               }
               
-              let filteredUnified = unified;
+              // Apply search filter
+              let filteredUnified = searchQuery.trim() ? unified.filter(u => {
+                const name = normalizeForMatch(u.type === 'isMeal' ? (u.fi?.name ?? '') : u.type === 'nm' ? (u.nm?.meal.name ?? '') : (u.item?.meal.name ?? ''));
+                const q = normalizeForMatch(searchQuery);
+                if (name.includes(q)) return true;
+                if (u.type === 'av' || u.type === 'partial') {
+                  const ing = normalizeForMatch(u.item?.meal.ingredients ?? '');
+                  if (ing.includes(q)) return true;
+                }
+                return false;
+              }) : unified;
               if (useRemainingCalories) {
                 filteredUnified = unified.filter(u => {
                   if (u.type === 'isMeal') {
