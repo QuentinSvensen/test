@@ -951,6 +951,7 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
               // Find where past/today ends and future begins
               const todayStr = new Date().toISOString().slice(0, 10);
               let dateSeparatorInserted = false;
+              const firstIsMealIdx = !isPlat ? filteredUnified.findIndex(u => u.type === 'isMeal') : -1;
 
               return filteredUnified.map((u, idx) => {
                 const elements: React.ReactNode[] = [];
