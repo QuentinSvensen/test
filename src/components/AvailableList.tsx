@@ -797,7 +797,7 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
           </h2>
           <span className="text-sm font-normal text-muted-foreground">{totalCount}</span>
         </button>
-        <Button size="sm" variant="ghost" onClick={onToggleSort} className="text-[10px] gap-0.5 h-6 px-1.5">
+      <Button size="sm" variant="ghost" onClick={onToggleSort} className="text-[10px] gap-0.5 h-6 px-1.5">
           <SortIcon className="h-3 w-3" />
           <span className="hidden sm:inline">{sortLabel}</span>
         </Button>
@@ -807,6 +807,18 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
           </Button>
         )}
       </div>
+
+      {!collapsed && (
+        <div className="mt-2 mb-1">
+          <Input
+            type="text"
+            placeholder="Rechercher..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-7 text-xs rounded-xl bg-muted/40 border-border/30 placeholder:text-muted-foreground/40"
+          />
+        </div>
+      )}
 
       {!collapsed && isPlat && (
         <div className="flex items-center gap-3 mt-3 px-3 py-1.5 bg-muted/40 rounded-2xl border border-muted/50">
