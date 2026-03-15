@@ -915,7 +915,27 @@ const Index = () => {
                   if (!pm) return;
                   const oldIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
                   if (oldIngredients || newIngredients) await adjustStockForIngredientChange(oldIngredients, newIngredients, deductionSnapshots[pmId]);
-                  updatePossibleIngredients.mutate({ id: pmId, ingredients_override: newIngredients });
+                  // Auto-fill macros from existing meals for renamed/new ingredients
+                  let finalIngredients = newIngredients;
+                  if (newIngredients) {
+                    const globalMacros = new Map<string, { cal: string; pro: string }>();
+                    for (const m of meals) {
+                      if (!m.ingredients) continue;
+                      const mMacros = extractIngredientMacros(m.ingredients);
+                      for (const [key, val] of mMacros) {
+                        const existing = globalMacros.get(key);
+                        globalMacros.set(key, {
+                          cal: val.cal || existing?.cal || "",
+                          pro: val.pro || existing?.pro || "",
+                        });
+                      }
+                    }
+                    if (globalMacros.size > 0) {
+                      const applied = applyIngredientMacros(newIngredients, globalMacros);
+                      if (applied) finalIngredients = applied;
+                    }
+                  }
+                  updatePossibleIngredients.mutate({ id: pmId, ingredients_override: finalIngredients });
                 }}
                 onUpdateQuantity={async (id, qty) => {
                   if (unParUnSourcePmIds.has(id)) {
