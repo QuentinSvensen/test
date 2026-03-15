@@ -276,9 +276,11 @@ export const MealCard = React.memo(forwardRef<HTMLDivElement, MealCardProps>(fun
               })()}
               {(() => {
                 const ingPro = computeIngredientProtein(meal.ingredients);
-                const displayPro = ingPro !== null ? String(ingPro) : meal.protein;
+                const rawPro = ingPro !== null ? String(ingPro) : meal.protein;
                 const isComputedPro = ingPro !== null;
-                return displayPro ? (
+                // Round display value visually
+                const displayPro = rawPro ? String(Math.round(parseFloat(rawPro.replace(',', '.').replace(/[^0-9.-]/g, '')) || 0)) : null;
+                return displayPro && displayPro !== '0' ? (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1 shrink-0 font-semibold ${
                     isComputedPro ? 'bg-blue-600/60 text-white' : 'text-white/70 bg-blue-500/30'
                   }`}>

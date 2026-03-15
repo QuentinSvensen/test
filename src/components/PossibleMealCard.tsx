@@ -495,14 +495,16 @@ export function PossibleMealCard({
           })()}
           {(() => {
             const ingPro = computeIngredientProtein(displayIngredients);
-            let displayPro = ingPro !== null ? String(ingPro) : meal.protein;
+            let rawPro = ingPro !== null ? String(ingPro) : meal.protein;
             const isComputedPro = ingPro !== null;
             // Scale manual protein by detected ratio
-            if (!isComputedPro && displayPro && detectedRatio !== null) {
-              const raw = parseFloat(displayPro.replace(/[^0-9.]/g, ''));
-              if (raw > 0) displayPro = String(Math.round(raw * detectedRatio));
+            if (!isComputedPro && rawPro && detectedRatio !== null) {
+              const raw = parseFloat(rawPro.replace(/[^0-9.]/g, ''));
+              if (raw > 0) rawPro = String(Math.round(raw * detectedRatio));
             }
-            return displayPro ? (
+            // Round display value visually
+            const displayPro = rawPro ? String(Math.round(parseFloat(rawPro.replace(',', '.').replace(/[^0-9.-]/g, '')) || 0)) : null;
+            return displayPro && displayPro !== '0' ? (
               <span className={`text-[10px] px-1 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 font-semibold ${
                 isComputedPro ? 'bg-blue-600/60 text-white' : 'text-white/90 bg-blue-500/40'
               }`}>
