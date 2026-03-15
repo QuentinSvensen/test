@@ -105,11 +105,14 @@ export function PossibleMealCard({
   const displayIngredients = pm.ingredients_override ?? meal.ingredients;
 
   // Detect scale ratio from override vs original ingredients
+  // Returns ratio only if ALL non-optional ingredients have the same ratio
   const detectScaleRatio = (): number | null => {
     if (!pm.ingredients_override || !meal.ingredients) return null;
     const origGroups = meal.ingredients.split(/(?:\n|,(?!\d))/).map(s => s.trim()).filter(Boolean);
     const overGroups = pm.ingredients_override.split(/(?:\n|,(?!\d))/).map(s => s.trim()).filter(Boolean);
     if (origGroups.length === 0) return null;
+    let detectedRatios: number[] = [];
+    let comparedCount = 0;
     for (let i = 0; i < Math.min(origGroups.length, overGroups.length); i++) {
       const origAlt = origGroups[i].split(/\|/)[0].trim();
       const overAlt = overGroups[i].split(/\|/)[0].trim();
@@ -119,17 +122,33 @@ export function PossibleMealCard({
       if (origMatch && overMatch) {
         const origQty = parseFloat(origMatch[1].replace(",", "."));
         const overQty = parseFloat(overMatch[1].replace(",", "."));
-        if (origQty > 0 && overQty > 0 && Math.abs(overQty / origQty - 1) > 0.01) return overQty / origQty;
+        if (origQty > 0 && overQty > 0) {
+          detectedRatios.push(overQty / origQty);
+          comparedCount++;
+          continue;
+        }
       }
       const origCountMatch = origAlt.match(/^(\d+(?:[.,]\d+)?)\s+\S/);
       const overCountMatch = overAlt.match(/^(\d+(?:[.,]\d+)?)\s+\S/);
       if (origCountMatch && overCountMatch && !origMatch && !overMatch) {
         const origCount = parseFloat(origCountMatch[1].replace(",", "."));
         const overCount = parseFloat(overCountMatch[1].replace(",", "."));
-        if (origCount > 0 && overCount > 0 && Math.abs(overCount / origCount - 1) > 0.01) return overCount / origCount;
+        if (origCount > 0 && overCount > 0) {
+          detectedRatios.push(overCount / origCount);
+          comparedCount++;
+          continue;
+        }
       }
+      comparedCount++;
+      detectedRatios.push(1); // no quantity change for this ingredient
     }
-    return null;
+    if (detectedRatios.length === 0) return null;
+    // Check if all ratios are the same (within tolerance)
+    const firstRatio = detectedRatios[0];
+    if (Math.abs(firstRatio - 1) <= 0.01) return null; // no scaling
+    const allSame = detectedRatios.every(r => Math.abs(r - firstRatio) / firstRatio < 0.05);
+    if (!allSame) return null; // manual edit, not uniform scaling
+    return firstRatio;
   };
   const detectedRatio = detectScaleRatio();
 

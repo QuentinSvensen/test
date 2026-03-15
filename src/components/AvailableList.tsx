@@ -949,7 +949,7 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
                 return false;
               }) : unified;
               if (useRemainingCalories) {
-                filteredUnified = unified.filter(u => {
+                filteredUnified = filteredUnified.filter(u => {
                   if (u.type === 'isMeal') {
                     const fakeMeal: Meal = { ...u.fi as unknown as Meal, calories: u.fi.calories, ingredients: null };
                     return tryFitMeal(fakeMeal, 1, false).show;

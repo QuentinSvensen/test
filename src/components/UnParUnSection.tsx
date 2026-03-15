@@ -77,14 +77,15 @@ export function UnParUnSection({ category, foodItems, allMeals, collapsed, onTog
       return [...items].sort((a, b) => (orderMap.get(a.id) ?? Infinity) - (orderMap.get(b.id) ?? Infinity));
     }
     return [...items].sort((a, b) => {
-      const aUnused = isUnused(a) ? 0 : 1;
-      const bUnused = isUnused(b) ? 0 : 1;
-      if (aUnused !== bUnused) return aUnused - bUnused;
       // Group: 0=has date (priority), 1=no date non-frozen, 2=frozen (surgelés)
       const aGroup = a.expiration_date ? 0 : (a.storage_type === 'surgele' ? 2 : 1);
       const bGroup = b.expiration_date ? 0 : (b.storage_type === 'surgele' ? 2 : 1);
       if (aGroup !== bGroup) return aGroup - bGroup;
       if (aGroup === 0) return a.expiration_date!.localeCompare(b.expiration_date!);
+      // Within same group, unused first
+      const aUnused = isUnused(a) ? 0 : 1;
+      const bUnused = isUnused(b) ? 0 : 1;
+      if (aUnused !== bUnused) return aUnused - bUnused;
       return 0;
     });
   };
