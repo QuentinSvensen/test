@@ -830,13 +830,13 @@ const Index = () => {
                 onReturnWithoutDeduction={async (id) => {
                   const pm = getPossibleByCategory(cat.value).find(p => p.id === id);
                   const snapshots = deductionSnapshots[id];
-                  if (pm?.ingredients_override && pm?.meals) {
-                    // Card was edited — use adjustStockForIngredientChange to cleanly reverse
-                    // This handles renamed ingredients correctly by restoring based on current state
+                  if (snapshots && snapshots.length > 0) {
+                    // Always prefer snapshot restoration — it restores exact original state
+                    await restoreIngredientsToStock({} as Meal, snapshots);
+                  } else if (pm?.ingredients_override && pm?.meals) {
+                    // No snapshots but has override — reverse the current ingredients
                     const currentIngredients = pm.ingredients_override;
                     await adjustStockForIngredientChange(currentIngredients, null, snapshots);
-                  } else if (snapshots && snapshots.length > 0) {
-                    await restoreIngredientsToStock({} as Meal, snapshots);
                   } else if (pm?.meals) {
                     await restoreIngredientsToStock(pm.meals);
                   }
