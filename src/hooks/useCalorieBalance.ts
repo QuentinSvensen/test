@@ -62,7 +62,8 @@ export function useCalorieBalance() {
         return total + slotMeals.reduce((s, pm) => {
           const override = calOverrides[pm.id];
           if (override) return s + parseCalories(override);
-          const ingCal = computeIngredientCalories(pm.meals?.ingredients);
+          const displayIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
+          const ingCal = computeIngredientCalories(displayIngredients);
           if (ingCal !== null) return s + ingCal;
           return s + parseCalories(pm.meals?.calories);
         }, 0);
@@ -72,7 +73,16 @@ export function useCalorieBalance() {
 
     const breakfast = getBreakfastForDay(day);
     const extra = extraCalories[day] || 0;
-    const breakfastCal = breakfast ? parseCalories(breakfast.calories) : (breakfastManualCalories[day] || 0);
+    // For breakfast calories, check possible meals for ingredient overrides first
+    let breakfastCal = 0;
+    if (breakfast) {
+      const possiblePdj = possibleMeals.find(pm => pm.meal_id === breakfastSelections[day] && pm.meals?.category === 'petit_dejeuner');
+      const breakfastIngredients = possiblePdj?.ingredients_override ?? breakfast.ingredients;
+      const ingCal = computeIngredientCalories(breakfastIngredients);
+      breakfastCal = ingCal !== null ? ingCal : parseCalories(breakfast.calories);
+    } else {
+      breakfastCal = breakfastManualCalories[day] || 0;
+    }
     const drinkCal = TIMES.reduce((sum, time) => sum + (drinkChecks[`${day}-${time}`] ? DRINK_CALORIES : 0), 0);
 
     return mealCals + breakfastCal + extra + drinkCal;

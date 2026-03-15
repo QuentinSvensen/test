@@ -455,7 +455,10 @@ const Index = () => {
       });
     } else {
       addMeal.mutate({ name: trimmedName, category: newCategory }, {
-        onSuccess: () => { setNewName(""); setDialogOpen(false); toast({ title: "Repas ajouté 🎉" }); }
+        onSuccess: (newMealResult) => {
+          setNewName(""); setDialogOpen(false); toast({ title: "Repas ajouté 🎉" });
+          // Auto-fill macros from existing meals for the new meal's ingredients (will be done when ingredients are added)
+        }
       });
     }
   };
@@ -710,7 +713,6 @@ const Index = () => {
                   onUpdateProtein={(id, prot) => updateProtein.mutate({ id, protein: prot })}
                   onUpdateGrams={(id, g) => updateGrams.mutate({ id, grams: g })}
                    onUpdateIngredients={(id, ing) => {
-                     updateIngredients.mutate({ id, ingredients: ing });
                      // Propagate cal/prot to other meals with same ingredient names
                      if (ing) {
                        // First collect macros from ALL meals to have a full picture
@@ -729,12 +731,20 @@ const Index = () => {
                          }
                        }
                        if (globalMacros.size > 0) {
+                         // Also apply macros back to the current meal being saved (auto-fill from others)
+                         const selfApplied = applyIngredientMacros(ing, globalMacros);
+                         const finalIng = selfApplied || ing;
+                         updateIngredients.mutate({ id, ingredients: finalIng });
                          for (const m of meals) {
                            if (m.id === id || !m.ingredients) continue;
                            const updated = applyIngredientMacros(m.ingredients, globalMacros);
                            if (updated) updateIngredients.mutate({ id: m.id, ingredients: updated });
                          }
+                       } else {
+                         updateIngredients.mutate({ id, ingredients: ing });
                        }
+                     } else {
+                       updateIngredients.mutate({ id, ingredients: ing });
                      }
                    }}
                   onToggleFavorite={(id) => {
@@ -820,13 +830,13 @@ const Index = () => {
                 onReturnWithoutDeduction={async (id) => {
                   const pm = getPossibleByCategory(cat.value).find(p => p.id === id);
                   const snapshots = deductionSnapshots[id];
-                  if (pm?.ingredients_override && pm?.meals) {
-                    // Card was edited — use adjustStockForIngredientChange to cleanly reverse
-                    // This handles renamed ingredients correctly by restoring based on current state
+                  if (snapshots && snapshots.length > 0) {
+                    // Always prefer snapshot restoration — it restores exact original state
+                    await restoreIngredientsToStock({} as Meal, snapshots);
+                  } else if (pm?.ingredients_override && pm?.meals) {
+                    // No snapshots but has override — reverse the current ingredients
                     const currentIngredients = pm.ingredients_override;
                     await adjustStockForIngredientChange(currentIngredients, null, snapshots);
-                  } else if (snapshots && snapshots.length > 0) {
-                    await restoreIngredientsToStock({} as Meal, snapshots);
                   } else if (pm?.meals) {
                     await restoreIngredientsToStock(pm.meals);
                   }
@@ -912,7 +922,27 @@ const Index = () => {
                   if (!pm) return;
                   const oldIngredients = pm.ingredients_override ?? pm.meals?.ingredients;
                   if (oldIngredients || newIngredients) await adjustStockForIngredientChange(oldIngredients, newIngredients, deductionSnapshots[pmId]);
-                  updatePossibleIngredients.mutate({ id: pmId, ingredients_override: newIngredients });
+                  // Auto-fill macros from existing meals for renamed/new ingredients
+                  let finalIngredients = newIngredients;
+                  if (newIngredients) {
+                    const globalMacros = new Map<string, { cal: string; pro: string }>();
+                    for (const m of meals) {
+                      if (!m.ingredients) continue;
+                      const mMacros = extractIngredientMacros(m.ingredients);
+                      for (const [key, val] of mMacros) {
+                        const existing = globalMacros.get(key);
+                        globalMacros.set(key, {
+                          cal: val.cal || existing?.cal || "",
+                          pro: val.pro || existing?.pro || "",
+                        });
+                      }
+                    }
+                    if (globalMacros.size > 0) {
+                      const applied = applyIngredientMacros(newIngredients, globalMacros);
+                      if (applied) finalIngredients = applied;
+                    }
+                  }
+                  updatePossibleIngredients.mutate({ id: pmId, ingredients_override: finalIngredients });
                 }}
                 onUpdateQuantity={async (id, qty) => {
                   if (unParUnSourcePmIds.has(id)) {

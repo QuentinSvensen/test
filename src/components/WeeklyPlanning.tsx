@@ -751,7 +751,7 @@ export function WeeklyPlanning() {
   };
 
   return (
-    <div className={`max-w-4xl mx-auto space-y-3 overflow-x-hidden ${touchDragActive ? "touch-none" : ""}`}>
+    <div className={`max-w-4xl mx-auto space-y-3 overflow-x-hidden planning-responsive ${touchDragActive ? "touch-none" : ""}`}>
       {/* Global planning header */}
       <div className="rounded-2xl bg-card/80 backdrop-blur-sm p-3 flex items-center gap-3 flex-wrap">
         <button onClick={handleManualReset} className="text-xs font-semibold bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg px-3 py-1.5 transition-colors">🔄 Reset</button>
@@ -1107,7 +1107,7 @@ export function WeeklyPlanning() {
                 );
               })}
               {/* Extra column */}
-              <div className="min-h-[44px] sm:min-h-[52px] rounded-xl border border-dashed border-orange-300/30 p-1 sm:p-1.5 w-14 sm:w-24 flex flex-col items-center">
+              <div className="min-h-[44px] sm:min-h-[52px] rounded-xl border border-dashed border-orange-300/30 p-1 sm:p-1.5 w-12 sm:w-20 flex flex-col items-center">
                 <span className="text-[7px] sm:text-[8px] font-semibold text-orange-400/60 uppercase tracking-wide">Extra</span>
                 <div className="flex flex-col items-center gap-0.5 mt-1 w-full">
                   <input

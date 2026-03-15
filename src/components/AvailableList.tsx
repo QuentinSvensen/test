@@ -1,5 +1,5 @@
 import { useState, Fragment } from "react";
-import { Plus, GripVertical, CheckCircle2, RotateCcw, AlertCircle, ArrowUpDown, CalendarDays, Box, Wand2, Flame, Drumstick, Sparkles, PieChart, ChevronDown, ChevronRight, ArrowUp, ArrowDown, UtensilsCrossed, Infinity as InfinityIcon } from "lucide-react";
+import { Plus, GripVertical, CheckCircle2, RotateCcw, AlertCircle, ArrowUpDown, CalendarDays, Box, Wand2, Flame, Drumstick, Sparkles, PieChart, ChevronDown, ChevronRight, ArrowUp, ArrowDown, UtensilsCrossed, Infinity as InfinityIcon, Search } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -822,6 +822,18 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
           </h2>
           <span className="text-sm font-normal text-muted-foreground">{totalCount}</span>
         </button>
+      {!collapsed && (
+        <div className="relative ml-auto">
+          <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
+          <Input
+            type="text"
+            placeholder="Rechercher…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-6 w-24 sm:w-28 text-[10px] rounded-xl bg-muted/40 border-border/30 placeholder:text-muted-foreground/40 pl-6"
+          />
+        </div>
+      )}
       <Button size="sm" variant="ghost" onClick={onToggleSort} className="text-[10px] gap-0.5 h-6 px-1.5">
           <SortIcon className="h-3 w-3" />
           <span className="hidden sm:inline">{sortLabel}</span>
@@ -832,18 +844,6 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
           </Button>
         )}
       </div>
-
-      {!collapsed && (
-        <div className="mt-2 mb-1">
-          <Input
-            type="text"
-            placeholder="Rechercher..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 text-xs rounded-xl bg-muted/40 border-border/30 placeholder:text-muted-foreground/40"
-          />
-        </div>
-      )}
 
       {!collapsed && isPlat && (
         <div className="flex items-center gap-3 mt-3 px-3 py-1.5 bg-muted/40 rounded-2xl border border-muted/50">
@@ -949,7 +949,7 @@ export function AvailableList({ category, meals, foodItems, allMeals, sortMode, 
                 return false;
               }) : unified;
               if (useRemainingCalories) {
-                filteredUnified = unified.filter(u => {
+                filteredUnified = filteredUnified.filter(u => {
                   if (u.type === 'isMeal') {
                     const fakeMeal: Meal = { ...u.fi as unknown as Meal, calories: u.fi.calories, ingredients: null };
                     return tryFitMeal(fakeMeal, 1, false).show;
